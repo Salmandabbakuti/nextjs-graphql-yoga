@@ -1,29 +1,42 @@
-import { useState, useEffect } from 'react';
-import Head from 'next/head';
-import Image from 'next/image';
-import styles from '../styles/Home.module.css';
+import { useState, useEffect } from "react";
+import { ApolloClient, InMemoryCache, ApolloLink, gql } from "@apollo/client";
+import { YogaLink } from "@graphql-yoga/apollo-link";
+import Head from "next/head";
+import Image from "next/image";
+import styles from "../styles/Home.module.css";
+
+const client = new ApolloClient({
+  cache: new InMemoryCache(),
+  link: new YogaLink({
+    endpoint: "/api/graphql",
+  })
+});
 
 export default function Home() {
   const [greeting, setGreeting] = useState(null);
+  const [notification, setNotification] = useState(null);
 
   useEffect(() => {
-    fetch('/api/graphql', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify({
-        query: `
-          query {
-            hello
-          }
-        `,
-      }),
-    })
-      .then(res => res.json())
-      .then(res => setGreeting(res.data.hello));
+    client
+      .query({
+        query: gql`
+        query {
+          hello
+        }`
+      })
+      .then((res) => setGreeting(res.data.hello))
+      .catch((err) => console.log(err));
   }, [greeting]);
+
+  client.subscribe({
+    query: gql`
+    subscription {
+      notification
+    }`
+  }).subscribe({
+    next: ({ data }) => setNotification(data.notification)
+  });
+
 
   return (
     <div className={styles.container}>
@@ -34,9 +47,8 @@ export default function Home() {
       </Head>
 
       <main className={styles.main}>
-        <h1 className={styles.title}>
-          {greeting || 'Loading...'}
-        </h1>
+        <h1 className={styles.title}>{greeting || "Loading..."}</h1>
+        {notification && <p className={styles.description}>{notification}</p>}
       </main>
 
       <footer className={styles.footer}>
@@ -45,7 +57,7 @@ export default function Home() {
           target="_blank"
           rel="noopener noreferrer"
         >
-          Powered by{' '}
+          Powered by{" "}
           <span className={styles.logo}>
             <Image src="/vercel.svg" alt="Vercel Logo" width={72} height={16} />
           </span>
